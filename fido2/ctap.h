@@ -139,23 +139,23 @@
 
 typedef struct
 {
-    uint8_t id[USER_ID_MAX_SIZE];
-    uint8_t id_size;
-    uint8_t name[USER_NAME_LIMIT];
-    uint8_t displayName[DISPLAY_NAME_LIMIT];
-    uint8_t icon[ICON_LIMIT];
+    uint8_t id[USER_ID_MAX_SIZE];  //64
+    uint8_t id_size; //1
+    uint8_t name[USER_NAME_LIMIT]; //65
+    uint8_t displayName[DISPLAY_NAME_LIMIT]; //32
+    uint8_t icon[ICON_LIMIT]; //128
 }__attribute__((packed)) CTAP_userEntity;
 
 typedef struct {
-    uint8_t tag[CREDENTIAL_TAG_SIZE];
-    uint8_t nonce[CREDENTIAL_NONCE_SIZE];
-    uint8_t rpIdHash[32];
-    uint32_t count;
+    uint8_t tag[CREDENTIAL_TAG_SIZE]; //16
+    uint8_t nonce[CREDENTIAL_NONCE_SIZE]; //18
+    uint8_t rpIdHash[32]; // 32
+    uint32_t count; //4
 }__attribute__((packed)) CredentialId;
 
-struct Credential {
-    CredentialId id;
-    CTAP_userEntity user;
+struct Credential { //370
+    CredentialId id; //70
+    CTAP_userEntity user; //~300
 };
 
 typedef struct Credential CTAP_residentKey;

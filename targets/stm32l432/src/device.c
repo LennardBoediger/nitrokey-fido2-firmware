@@ -499,7 +499,7 @@ uint32_t ctap_rk_size()
 
 void ctap_store_rk(int index,CTAP_residentKey * rk)
 {
-    int page_offset = (sizeof(CTAP_residentKey) * index) / PAGE_SIZE;
+    int page_offset = (sizeof(CTAP_residentKey) * index) / PAGE_SIZE; // 5 per page
     uint32_t addr = flash_addr(page_offset + RK_START_PAGE) + ((sizeof(CTAP_residentKey)*index) % PAGE_SIZE);
 
     printf1(TAG_GREEN, "storing RK %d @ %04x\r\n", index,addr);
