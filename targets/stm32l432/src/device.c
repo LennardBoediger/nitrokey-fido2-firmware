@@ -416,6 +416,7 @@ int ctap_user_presence_test()
 {
     int ret;
 #if SKIP_BUTTON_CHECK_WITH_DELAY
+    printf1(TAG_GEN,"Simulating button press in 500 ms\n");
     int i=500;
     while(i--)
     {
@@ -425,6 +426,7 @@ int ctap_user_presence_test()
     }
     goto done;
 #elif SKIP_BUTTON_CHECK_FAST
+    printf1(TAG_GEN,"Simulating immediate button press\n");
     delay(2);
     ret = handle_packets();
     if (ret) return ret;
@@ -464,10 +466,12 @@ delay(50);
 
 
 done:
-return 1;
+    printf1(TAG_GEN,"Button pressed\n");
+    return 1;
 
 fail:
-return 0;
+    printf1(TAG_GEN,"Button not pressed\n");
+    return 0;
 }
 
 int ctap_generate_rng(uint8_t * dst, size_t num)
