@@ -556,15 +556,32 @@ int ctap_authenticate_credential(struct rpId * rp, CTAP_credentialDescriptor * d
 }
 
 
+typedef union {
+        uint8_t auth_data_buf[300];
+        CTAP_credentialDescriptor excl_cred;
+        struct {
+                uint8_t _padding[32];
+                uint8_t sigbuf[32];
+                uint8_t sigder[73];
+        } __attribute__((packed));
+} _temp_cmr;
 
 uint8_t ctap_make_credential(CborEncoder * encoder, uint8_t * request, int length)
 {
     CTAP_makeCredential MC;
     int ret, i;
-    uint8_t auth_data_buf[300];
-    CTAP_credentialDescriptor * excl_cred = (CTAP_credentialDescriptor *) auth_data_buf;
-    uint8_t * sigbuf = auth_data_buf + 32;
-    uint8_t * sigder = auth_data_buf + 32 + 64;
+
+    _temp_cmr temp_memory;
+
+//    uint8_t auth_data_buf[370];
+//    CTAP_credentialDescriptor * excl_cred = (CTAP_credentialDescriptor *) auth_data_buf; //sizeof(CTAP_credentialDescriptor) = 361
+//    uint8_t * sigbuf = auth_data_buf + 32; // needs 32 ?
+//    uint8_t * sigder = auth_data_buf + 32 + 64; // sigder needs 70+
+
+    uint8_t * auth_data_buf = temp_memory.auth_data_buf;
+    CTAP_credentialDescriptor * excl_cred = &temp_memory.excl_cred;
+    uint8_t * sigbuf = temp_memory.sigbuf;
+    uint8_t * sigder = temp_memory.sigder;
 
     ret = ctap_parse_make_credential(&MC,encoder,request,length);
     if (ret != 0)
@@ -626,13 +643,13 @@ uint8_t ctap_make_credential(CborEncoder * encoder, uint8_t * request, int lengt
     check_ret(ret);
     int32_t auth_data_sz;
 
-    ret = ctap_make_auth_data(&MC.rp, &map, auth_data_buf, sizeof(auth_data_buf),
+    ret = ctap_make_auth_data(&MC.rp, &map, temp_memory.auth_data_buf, sizeof(temp_memory.auth_data_buf),
             &MC.user, MC.publicKeyCredentialType, MC.COSEAlgorithmIdentifier, &auth_data_sz, MC.rk);
 
     check_retr(ret);
 
     crypto_ecc256_load_attestation_key();
-    int sigder_sz = ctap_calculate_signature(auth_data_buf, auth_data_sz, MC.clientDataHash, auth_data_buf, sigbuf, sigder);
+    int sigder_sz = ctap_calculate_signature(temp_memory.auth_data_buf, auth_data_sz, MC.clientDataHash, temp_memory.auth_data_buf, sigbuf, sigder);
 
     printf1(TAG_MC,"der sig [%d]: ", sigder_sz); dump_hex1(TAG_MC, sigder, sigder_sz);
 
