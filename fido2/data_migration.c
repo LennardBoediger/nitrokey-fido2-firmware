@@ -16,27 +16,27 @@ typedef uint8_t * address;
 typedef uint8_t page_num;
 
 bool RK_record_empty(CTAP_residentKey_vFF* rec){
+  // ctap_delete_rk() overwrites key with 0xff
   return *((uint32_t*)rec) == 0xFFFFFFFF;
 }
 
-typedef struct RK_page {
+typedef struct RK_page_1 {
   union{
     struct{
       CTAP_residentKey_v1 buf_1[5];
       uint8_t _padding[2];
       uint8_t version;
-    };
+    } __attribute__((packed));
     uint8_t page_raw[PAGE_SIZE];
   };
-} RK_page;
+} __attribute__((packed)) RK_page_1;
 
-static_assert(sizeof(RK_page) <= FLASH_PAGE_SIZE, "RK PAGE bigger than one page");
+static_assert(sizeof(RK_page_1) == FLASH_PAGE_SIZE, "RK PAGE size different than one page");
 
 void migrate_RK_page_from_FF_to_01(page_num page){
   CTAP_residentKey_vFF buf_ff[5];
-  CTAP_residentKey_v1 buf_1[5];
+  RK_page_1 rkPage1;
   static_assert(sizeof(buf_ff) <= FLASH_PAGE_SIZE, "array buf ff bigger than one page");
-  static_assert(sizeof(buf_1) <= FLASH_PAGE_SIZE, "array buf 1 bigger than one page");
 
   uint8_t rpId_str[] = "Unknown   ";
 
@@ -49,27 +49,29 @@ void migrate_RK_page_from_FF_to_01(page_num page){
       //skip processing empty record
       continue;
     }
-    memmove((address)&buf_1[i].id, (address)&buf_ff[i].id, sizeof(buf_ff[i].id));
-    memmove((address)&buf_1[i].user, (address)&buf_ff[i].user, sizeof(buf_ff[i].user));
-    memmove((address)&buf_1[i].rpId, rpId_str, sizeof(rpId_str));
-    buf_1[i].rpIdSize = sizeof(rpId_str);
+    memmove((address)&rkPage1.buf_1[i].id, (address)&buf_ff[i].id, sizeof(buf_ff[i].id));
+    memmove((address)&rkPage1.buf_1[i].user, (address)&buf_ff[i].user, sizeof(buf_ff[i].user));
+    memmove((address)&rkPage1.buf_1[i].rpId, rpId_str, sizeof(rpId_str));
+    rkPage1.buf_1[i].rpIdSize = sizeof(rpId_str);
   }
 
   //set version on page 1
   if (page == 0) {
-    *(uint8_t*)(&buf_1) = 0x01;
+    rkPage1.version = 0x01;
   }
 
   // clear page addr
   flash_erase_page(page);
   // move data to page
-  flash_write(flash_addr(page), (address)buf_1, sizeof(buf_1));
+  flash_write(flash_addr(page), (address)&rkPage1, sizeof(rkPage1));
 }
 
 void migrate_RK_from_FF_to_01(){
-  if (*(uint8_t*)flash_addr(RK_START_PAGE) == 0x01) {
+  // skip migration, if version is set to 01 already
+  if (((RK_page_1*)flash_addr(RK_START_PAGE))->version == 0x01) {
     return;
   }
+  // run migration
   for (int i = 0; i < RK_NUM_PAGES; ++i) {
     migrate_RK_page_from_FF_to_01(RK_START_PAGE+i);
   }
@@ -128,6 +130,9 @@ void save_migrated_state(AuthenticatorState *state_tmp_ptr) {
 void do_migration_if_required(AuthenticatorState* state_current){
     // Currently handles only state structures with the same size, or bigger
     // FIXME rework to raw buffers with fixed size to allow state structure size decrease
+
+    migrate_RK_from_FF_to_01();
+
     if(!state_current->is_initialized)
         return;
 
