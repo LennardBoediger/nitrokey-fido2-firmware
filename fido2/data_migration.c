@@ -53,7 +53,7 @@ void migrate_RK_page_from_FF_to_01(page_num page){
     }
     memmove((address)&rkPage1.buf_1[i].id, (address)&buf_ff[i].id, sizeof(buf_ff[i].id));
     memmove((address)&rkPage1.buf_1[i].user, (address)&buf_ff[i].user, sizeof(buf_ff[i].user));
-    memmove((address)&rkPage1.buf_1[i].rpId, rpId_str, sizeof(rpId_str));
+    memmove((address)rkPage1.buf_1[i].rpId, rpId_str, sizeof(rpId_str));
     rkPage1.buf_1[i].rpIdSize = sizeof(rpId_str);
   }
 
