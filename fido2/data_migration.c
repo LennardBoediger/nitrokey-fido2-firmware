@@ -9,7 +9,73 @@
 #include "log.h"
 #include "device.h"
 #include "crypto.h"
+#include "flash.h"
+#include "memory_layout.h"
 
+typedef uint8_t * address;
+typedef uint8_t page_num;
+
+bool RK_record_empty(CTAP_residentKey_vFF* rec){
+  return *((uint32_t*)rec) == 0xFFFFFFFF;
+}
+
+typedef struct RK_page {
+  union{
+    struct{
+      CTAP_residentKey_v1 buf_1[5];
+      uint8_t _padding[2];
+      uint8_t version;
+    };
+    uint8_t page_raw[PAGE_SIZE];
+  };
+} RK_page;
+
+static_assert(sizeof(RK_page) <= FLASH_PAGE_SIZE, "RK PAGE bigger than one page");
+
+void migrate_RK_page_from_FF_to_01(page_num page){
+  CTAP_residentKey_vFF buf_ff[5];
+  CTAP_residentKey_v1 buf_1[5];
+  static_assert(sizeof(buf_ff) <= FLASH_PAGE_SIZE, "array buf ff bigger than one page");
+  static_assert(sizeof(buf_1) <= FLASH_PAGE_SIZE, "array buf 1 bigger than one page");
+
+  uint8_t rpId_str[] = "Unknown   ";
+
+  // load data into buffer
+  memmove((address)buf_ff, (address)flash_addr(page), sizeof(buf_ff));
+
+  // process data
+  for (int i = 0; i < 5; ++i) {
+    if (RK_record_empty(&buf_ff[i])) {
+      //skip processing empty record
+      continue;
+    }
+    memmove((address)&buf_1[i].id, (address)&buf_ff[i].id, sizeof(buf_ff[i].id));
+    memmove((address)&buf_1[i].user, (address)&buf_ff[i].user, sizeof(buf_ff[i].user));
+    memmove((address)&buf_1[i].rpId, rpId_str, sizeof(rpId_str));
+    buf_1[i].rpIdSize = sizeof(rpId_str);
+  }
+
+  //set version on page 1
+  if (page == 0) {
+    *(uint8_t*)(&buf_1) = 0x01;
+  }
+
+  // clear page addr
+  flash_erase_page(page);
+  // move data to page
+  flash_write(flash_addr(page), (address)buf_1, sizeof(buf_1));
+}
+
+void migrate_RK_from_FF_to_01(){
+  if (*(uint8_t*)flash_addr(RK_START_PAGE) == 0x01) {
+    return;
+  }
+  for (int i = 0; i < RK_NUM_PAGES; ++i) {
+    migrate_RK_page_from_FF_to_01(RK_START_PAGE+i);
+  }
+}
+
+// TODO bail if cannot restore the data, instead of triggering assert
 // TODO move from macro to function/assert for better readability?
 #define check(x) assert(state_prev_0xff->x == state_tmp_ptr->x);
 #define check_buf(x) assert(memcmp(state_prev_0xff->x, state_tmp_ptr->x, sizeof(state_tmp_ptr->x)) == 0);

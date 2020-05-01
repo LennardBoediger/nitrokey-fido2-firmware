@@ -179,11 +179,18 @@ struct  __attribute__((packed)) Credential {
 typedef struct {
     CredentialId id;
     CTAP_userEntity user;
+} __attribute__((packed)) CTAP_residentKey_vFF;
+
+typedef struct {
+    CredentialId id;
+    CTAP_userEntity user;
 
     // Maximum amount of "extra" space in resident key.
     uint8_t rpId[14+64];
     uint8_t rpIdSize;
-} __attribute__((packed)) CTAP_residentKey;
+} __attribute__((packed)) CTAP_residentKey_v1;
+
+typedef CTAP_residentKey_v1 CTAP_residentKey;
 
 // 10*2048/50 = 409 - 50 RK over a 10 pages by 2048 bytes
 // 5*409 = 2045
