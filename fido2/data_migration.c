@@ -48,7 +48,7 @@ void migrate_RK_page_from_FF_to_01(page_num page){
   // process data
   for (int i = 0; i < 5; ++i) {
     if (RK_record_empty(&buf_ff[i])) {
-      //skip processing empty record
+      printf1(TAG_GREEN, "Migration: skip processing empty record %d\n", i);
       continue;
     }
     memmove((address)&rkPage1.buf_1[i].id, (address)&buf_ff[i].id, sizeof(buf_ff[i].id));
@@ -71,12 +71,14 @@ void migrate_RK_page_from_FF_to_01(page_num page){
 void migrate_RK_from_FF_to_01(){
   // skip migration, if version is set to 01 already
   if (((RK_page_1*)flash_addr(RK_START_PAGE))->version == 0x01) {
+    printf1(TAG_GREEN, "Skip migration - RK version set to 0x01 already\n");
     return;
   }
-  // run migration
+  printf1(TAG_GREEN, "Running RK migration\n");
   for (int i = 0; i < RK_NUM_PAGES; ++i) {
     migrate_RK_page_from_FF_to_01(RK_START_PAGE+i);
   }
+  printf1(TAG_GREEN, "Finished RK migration\n");
 }
 
 // TODO bail if cannot restore the data, instead of triggering assert
