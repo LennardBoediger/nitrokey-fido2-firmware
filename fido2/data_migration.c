@@ -14,6 +14,7 @@
 
 typedef uint8_t * address;
 typedef uint8_t page_num;
+#define member_size(type, member) sizeof(((type *)0)->member)
 
 bool RK_record_empty(CTAP_residentKey_vFF* rec){
   // ctap_delete_rk() overwrites key with 0xff
@@ -39,6 +40,7 @@ void migrate_RK_page_from_FF_to_01(page_num page){
   static_assert(sizeof(buf_ff) <= FLASH_PAGE_SIZE, "array buf ff bigger than one page");
 
   uint8_t rpId_str[] = "Unknown   ";
+  static_assert(sizeof(rpId_str) <= member_size(CTAP_residentKey_v1, rpId), "rpid str bigger than available memory");
 
   // load data into buffer
   memmove((address)buf_ff, (address)flash_addr(page), sizeof(buf_ff));
