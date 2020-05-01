@@ -46,7 +46,7 @@ void migrate_RK_page_from_FF_to_01(page_num page){
   memmove((address)buf_ff, (address)flash_addr(page), sizeof(buf_ff));
 
   // process data
-  for (int i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < 5; ++i) {
     if (RK_record_empty(&buf_ff[i])) {
       printf1(TAG_GREEN, "Migration: skip processing empty record %d\n", i);
       continue;
@@ -75,7 +75,7 @@ void migrate_RK_from_FF_to_01(){
     return;
   }
   printf1(TAG_GREEN, "Running RK migration\n");
-  for (int i = 0; i < RK_NUM_PAGES; ++i) {
+  for (page_num i = 0; i < RK_NUM_PAGES; ++i) {
     migrate_RK_page_from_FF_to_01(RK_START_PAGE+i);
   }
   printf1(TAG_GREEN, "Finished RK migration\n");
