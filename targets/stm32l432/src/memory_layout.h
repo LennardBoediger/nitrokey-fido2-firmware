@@ -51,6 +51,8 @@
 #define BOOT_VERSION_ADDR    (0x08000000 + BOOT_VERSION_PAGE*FLASH_PAGE_SIZE + 8)
 #define LAST_PAGE       (APPLICATION_END_PAGE-1)
 
+#define member_size(type, member) sizeof(((type *)0)->member)
+
 struct flash_memory_st{
   uint8_t bootloader[APPLICATION_START_PAGE*2*1024];
 
@@ -66,6 +68,13 @@ struct flash_memory_st{
 } __attribute__((packed));
 
 typedef struct flash_memory_st flash_memory_st;
+
+typedef union {
+  flash_memory_st flash;
+  uint8_t flash_raw[256*1024];
+} flash_st;
+
+extern flash_st * device_flash;
 
 #include <assert.h>
 static_assert(sizeof(flash_memory_st) == 256*1024, "Data structure doesn't match flash size");

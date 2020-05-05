@@ -4,31 +4,44 @@
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
-#include <sys/time.h>
+#include <fcntl.h>
+#include <flash.h>
+#include <netinet/in.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
-#include <signal.h>
-#include <fcntl.h>
 
-#include "device.h"
 #include "cbor.h"
-#include "util.h"
-#include "log.h"
 #include "ctaphid.h"
+#include "device.h"
+#include "log.h"
+#include "util.h"
 
-#define RK_NUM  50
+#define RK_NUM 50
 
 static bool use_udp = true;
 
-struct ResidentKeyStore {
-    CTAP_residentKey rks[RK_NUM];
-} RK_STORE;
+#include "memory_layout.h"
+static flash_st tmp_flash;
+flash_st *device_flash = &tmp_flash;
+
+typedef struct ResidentKeyStore {
+  struct {
+    CTAP_residentKey rks[5];
+    uint8_t padding [3];
+  } page [10];
+} ResidentKeyStore;
+
+static_assert(member_size(ResidentKeyStore, page) == 10*PAGE_SIZE, "struct not equal to page size");
+
+static struct ResidentKeyStore * RK_STORE = NULL;
 
 void authenticator_initialize();
 
@@ -267,7 +280,6 @@ void delay(uint32_t ms)
 
 int ctap_generate_rng(uint8_t * dst, size_t num)
 {
-    int ret;
     FILE * urand = fopen("/dev/urandom","r");
     if (urand == NULL)
     {
@@ -339,16 +351,21 @@ void authenticator_write_state(AuthenticatorState * state)
 
 static void sync_rk()
 {
-    FILE * f = fopen(rk_file, "wb+");
+  if (RK_STORE == NULL) {
+    return;
+  }
+
+  FILE * f = fopen(rk_file, "wb+");
     if (f== NULL)
     {
         perror("fopen");
         exit(1);
     }
 
-    int ret = fwrite(&RK_STORE, 1, sizeof(RK_STORE), f);
+    int ret = fwrite(RK_STORE, 1, sizeof(*RK_STORE), f);
     fclose(f);
-    if (ret != sizeof(RK_STORE))
+    printf("%s: written %d out of %lu\n", __FUNCTION__ ,ret, sizeof(*RK_STORE));
+    if (ret != sizeof(*RK_STORE))
     {
         perror("fwrite");
         exit(1);
@@ -357,6 +374,11 @@ static void sync_rk()
 
 void authenticator_initialize()
 {
+    for (int i = 0; i < 128; ++i) {
+      flash_erase_page(i);
+    }
+   RK_STORE = (struct ResidentKeyStore *) m_flash_addr_ptr(RK_START_PAGE);
+
     uint8_t header[16];
     FILE * f;
     int ret;
@@ -386,9 +408,9 @@ void authenticator_initialize()
             perror("fopen");
             exit(1);
         }
-        ret = fread(&RK_STORE, 1, sizeof(RK_STORE), f);
+        ret = fread(RK_STORE, 1, sizeof(*RK_STORE), f);
         fclose(f);
-        if(ret != sizeof(RK_STORE))
+        if(ret != sizeof(*RK_STORE))
         {
             perror("fwrite");
             exit(1);
@@ -416,7 +438,7 @@ void authenticator_initialize()
         }
 
         // resident_keys
-        memset(&RK_STORE,0xff,sizeof(RK_STORE));
+        memset(RK_STORE,0xff,sizeof(*RK_STORE));
         sync_rk();
 
     }
@@ -425,7 +447,7 @@ void authenticator_initialize()
 
 void ctap_reset_rk()
 {
-    memset(&RK_STORE,0xff,sizeof(RK_STORE));
+    memset(RK_STORE,0xff,sizeof(*RK_STORE));
     sync_rk();
 }
 
@@ -439,7 +461,7 @@ void ctap_store_rk(int index, CTAP_residentKey * rk)
 {
     if (index < RK_NUM)
     {
-        memmove(RK_STORE.rks + index, rk, sizeof(CTAP_residentKey));
+        memmove(RK_STORE->page[index/5].rks + index%5, rk, sizeof(CTAP_residentKey));
         sync_rk();
     }
     else
@@ -451,21 +473,27 @@ void ctap_store_rk(int index, CTAP_residentKey * rk)
 
 void ctap_delete_rk(int index)
 {
+    if (index < RK_NUM)
+    {
+      printf1(TAG_ERR,"Out of bounds for store_rk\r\n");
+      return;
+    }
     CTAP_residentKey rk;
     memset(&rk, 0xff, sizeof(CTAP_residentKey));
-    memmove(RK_STORE.rks + index, &rk, sizeof(CTAP_residentKey));
+    memmove(RK_STORE->page[index/5].rks + index%5, &rk, sizeof(CTAP_residentKey));
+    sync_rk();
 }
 
 void ctap_load_rk(int index, CTAP_residentKey * rk)
 {
-    memmove(rk, RK_STORE.rks + index, sizeof(CTAP_residentKey));
+    memmove(rk, RK_STORE->page[index/5].rks + index%5, sizeof(CTAP_residentKey));
 }
 
 void ctap_overwrite_rk(int index, CTAP_residentKey * rk)
 {
     if (index < RK_NUM)
     {
-        memmove(RK_STORE.rks + index, rk, sizeof(CTAP_residentKey));
+        memmove(RK_STORE->page[index/5].rks + index%5, rk, sizeof(CTAP_residentKey));
         sync_rk();
     }
     else
@@ -474,13 +502,30 @@ void ctap_overwrite_rk(int index, CTAP_residentKey * rk)
     }
 }
 
-
-
-int ctap_get_status_data(uint8_t * ctap_buffer) {
+int ctap_get_status_data(uint8_t *ctap_buffer) {
   memset(ctap_buffer, 42, 10);
   return 0;
 }
 
+void flash_erase_page(uint8_t page) {
+  assert(page <= FLASH_PAGE_END);
+  memset(&device_flash->flash_raw[flash_addr(page) - FLASH_BASE], 0xFF, PAGE_SIZE);
+}
+
+void flash_write(uint32_t addr, uint8_t *data, size_t sz) {
+  assert(addr + sz < flash_addr(FLASH_PAGE_END+1));
+  memmove(&device_flash->flash_raw[addr - FLASH_BASE], data, sz);
+  printf("Writing to address %p\n", (void*)addr);
+  sync_rk();
+}
 
 
+uint8_t * m_flash_addr_ptr(int page) {
+  const int offset = (page) * FLASH_PAGE_SIZE;
+  return device_flash->flash_raw + offset;
+}
 
+uint32_t m_flash_addr_int(int page) {
+  const int offset = (page) * FLASH_PAGE_SIZE;
+  return (uint32_t) (device_flash->flash_raw + offset);
+}

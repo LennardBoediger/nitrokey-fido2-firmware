@@ -14,7 +14,6 @@
 
 typedef uint8_t * address;
 typedef uint8_t page_num;
-#define member_size(type, member) sizeof(((type *)0)->member)
 
 bool RK_record_empty(CTAP_residentKey_vFF* rec){
   // ctap_delete_rk() overwrites key with 0xff
@@ -26,10 +25,10 @@ typedef struct RK_page_1 {
     struct{
       CTAP_residentKey_v1 buf_1[5];
       uint8_t _padding[2];
-      uint8_t version;
+      uint8_t version; // last byte of the page
     } __attribute__((packed));
     uint8_t page_raw[PAGE_SIZE];
-  };
+  } __attribute__((packed));
 } __attribute__((packed)) RK_page_1;
 
 static_assert(sizeof(RK_page_1) == FLASH_PAGE_SIZE, "RK PAGE size different than one page");
@@ -37,13 +36,15 @@ static_assert(sizeof(RK_page_1) == FLASH_PAGE_SIZE, "RK PAGE size different than
 void migrate_RK_page_from_FF_to_01(page_num page){
   CTAP_residentKey_vFF buf_ff[5];
   RK_page_1 rkPage1;
+  memset((void*)&rkPage1, 0xFF, sizeof(rkPage1));
+
   static_assert(sizeof(buf_ff) <= FLASH_PAGE_SIZE, "array buf ff bigger than one page");
 
   uint8_t rpId_str[] = "Unknown   ";
   static_assert(sizeof(rpId_str) <= member_size(CTAP_residentKey_v1, rpId), "rpid str bigger than available memory");
 
   // load data into buffer
-  memmove((address)buf_ff, (address)flash_addr(page), sizeof(buf_ff));
+  memmove((address)buf_ff, (address)m_flash_addr_ptr(page), sizeof(buf_ff));
 
   // process data
   for (uint8_t i = 0; i < 5; ++i) {
@@ -71,7 +72,7 @@ void migrate_RK_page_from_FF_to_01(page_num page){
 
 void migrate_RK_from_FF_to_01(){
   // skip migration, if version is set to 01 already
-  if (((RK_page_1*)flash_addr(RK_START_PAGE))->version == 0x01) {
+  if ( ((RK_page_1*)m_flash_addr_ptr(RK_START_PAGE))->version == 0x01 ) {
     printf1(TAG_GREEN, "Skip migration - RK version set to 0x01 already\n");
     return;
   }

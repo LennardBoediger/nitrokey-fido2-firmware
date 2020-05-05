@@ -900,10 +900,10 @@ void ctap_overwrite_rk(int index,CTAP_residentKey * rk)
     int byte_offset_into_page = (sizeof(CTAP_residentKey) * (index % (PAGE_SIZE/sizeof(CTAP_residentKey))));
     int page_offset = (index)/(PAGE_SIZE/sizeof(CTAP_residentKey));
 
-    printf1(TAG_GREEN, "overwriting RK %d @ page %d @ addr 0x%08x-0x%08x\r\n", 
-        index, RK_START_PAGE + page_offset, 
-        flash_addr(RK_START_PAGE + page_offset) + byte_offset_into_page, 
-        flash_addr(RK_START_PAGE + page_offset) + byte_offset_into_page + sizeof(CTAP_residentKey) 
+    printf1(TAG_GREEN, "overwriting RK %d @ page %d @ addr 0x%08x-0x%08x\r\n",
+        index, RK_START_PAGE + page_offset,
+        flash_addr(RK_START_PAGE + page_offset) + byte_offset_into_page,
+        flash_addr(RK_START_PAGE + page_offset) + byte_offset_into_page + sizeof(CTAP_residentKey)
         );
     if (page_offset < RK_NUM_PAGES)
     {
@@ -966,4 +966,17 @@ void _Error_Handler(char *file, int line)
     while(1)
     {
     }
+}
+
+flash_st *device_flash = FLASH_BASE;
+
+
+uint8_t * m_flash_addr_ptr(int page) {
+  const int offset = (page) * FLASH_PAGE_SIZE;
+  return device_flash->flash_raw + offset;
+}
+
+uint32_t m_flash_addr_int(int page) {
+  const int offset = (page) * FLASH_PAGE_SIZE;
+  return (uint32_t) (device_flash->flash_raw + offset);
 }

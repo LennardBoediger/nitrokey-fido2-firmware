@@ -226,4 +226,7 @@ uint16_t device_attestation_cert_der_get_size();
  * */
 void device_read_aaguid(uint8_t * dst);
 
+uint8_t * m_flash_addr_ptr(int page);
+uint32_t m_flash_addr_int(int page);
+
 #endif
