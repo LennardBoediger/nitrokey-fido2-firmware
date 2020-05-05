@@ -1037,9 +1037,11 @@ uint8_t ctap_add_user_entity(CborEncoder * map, CTAP_userEntity * user, int is_v
     int ret;
     int map_size = 1;
 
+    const bool encode_icon_field = strlen((const char *)user->icon) > 0;
+    printf1(TAG_GREEN,"Encode icon field: %d\n", encode_icon_field);
     if (dispname)
     {
-        map_size = strlen((const char *)user->icon) > 0 ? 4 : 3;
+        map_size = encode_icon_field ? 4 : 3; // FIXME strlen usage
     }
     ret = cbor_encoder_create_map(map, &entity, map_size);
     check_ret(ret);
@@ -1052,12 +1054,13 @@ uint8_t ctap_add_user_entity(CborEncoder * map, CTAP_userEntity * user, int is_v
 
     if (dispname)
     {
-        if (strlen((const char *)user->icon) > 0)
+        if (encode_icon_field)
         {
             ret = cbor_encode_text_string(&entity, "icon", 4);
             check_ret(ret);
             ret = cbor_encode_text_stringz(&entity, (const char *)user->icon);
             check_ret(ret);
+            printf1(TAG_GREEN,"Written icon field : %s \n", user->icon);
         }
 
         ret = cbor_encode_text_string(&entity, "name", 4);
