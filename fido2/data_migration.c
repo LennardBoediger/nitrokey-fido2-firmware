@@ -58,8 +58,9 @@ void migrate_RK_page_from_FF_to_01(page_num page){
   }
 
   //set version on page 1
-  if (page == 0) {
+  if (page == RK_START_PAGE) {
     rkPage1.version = 0x01;
+    printf1(TAG_GREEN, "Migration: set version to %x\n", rkPage1.version);
   }
 
   // clear page addr
