@@ -94,6 +94,7 @@ const uint8_t * attestation_cert_der = ((flash_attestation_page *)ATTESTATION_PA
 
 uint8_t * device_get_attestation_key(){
     flash_attestation_page * page =(flash_attestation_page *)ATTESTATION_PAGE_ADDR;
+    printf2(TAG_DUMP, "Getting attest key\n"); dump_arr(TAG_DUMP, page->attestation_key);
     return page->attestation_key;
 }
 
@@ -106,6 +107,7 @@ void device_attestation_read_cert_der(uint8_t * dst){
     const uint8_t * der = ((flash_attestation_page *)ATTESTATION_PAGE_ADDR)->attestation_cert;
     uint16_t sz = device_attestation_cert_der_get_size();
     memmove(dst, der, sz);
+    printf2(TAG_DUMP, "Getting attest cert [32 out of %d]\n", sz); dump_arrl(TAG_DUMP, dst, 32);
 }
 
 const uint8_t global_aaguid[16] = "\xc3\x9e\xfb\xa6\xfc\xf4\x4c\x3e\x82\x8b\xfc\x4a\x61\x15\xa0\xff";
