@@ -952,10 +952,11 @@ void boot_solo_bootloader(void)
 
 }
 
-const uint8_t global_aaguid[16];
+extern const uint8_t global_aaguid[16];
 
 void device_read_aaguid(uint8_t * dst){
     memmove(dst, global_aaguid, 16);
+    printf2(TAG_GREEN, "Sending AAGUID: ");
     dump_hex1(TAG_GREEN,dst, 16);
 }
 
