@@ -90,7 +90,12 @@ void button_manager (void) {                          // Requires at least a 750
 				}
 		    }break;
 		    case BST_PRESSED_CONSUMED:
-		    	break;
+                        break;
+                    case BST_PRESSED_CONSUMED_ACTIVE:
+                        if (get_ms() - button_press_t >= 2000) {
+                          button_state = BST_PRESSED_CONSUMED;
+                        }
+                        break;
 		    case BST_PRESSED_REGISTERED:
 				if (get_ms() - button_press_t >= BUTTON_MAX_PRESS_T_MS) {
 					button_state = BST_PRESSED_REGISTERED_TRANSITIONAL;
