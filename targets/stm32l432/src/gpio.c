@@ -143,7 +143,7 @@ char * button_state_to_string(BUTTON_STATE_T state){
 #endif
 
 uint8_t button_get_press (void) {
-	return ((button_state == BST_PRESSED_REGISTERED)? 1 : 0);
+	return ((button_state == BST_PRESSED_REGISTERED || button_state == BST_PRESSED_CONSUMED_ACTIVE)? 1 : 0);
 }
 
 BUTTON_STATE_T button_get_press_state (void) {
