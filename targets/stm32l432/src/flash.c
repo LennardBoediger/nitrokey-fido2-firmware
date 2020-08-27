@@ -42,8 +42,8 @@ void flash_option_bytes_init(int boot_from_dfu)
         if (solo_is_locked())
         {
 #ifdef NK_TEST_MODE
-          #warning "ROP==1 enabled"
-          val = 0xfffff8b9; // ROP==1
+          #warning "ROP==0 enabled"
+//          val = 0xfffff8b9; // ROP==1
 #else
           #warning "ROP==2 enabled"
           val = 0xfffff8cc; // ROP==2
